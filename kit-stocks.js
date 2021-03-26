@@ -3,91 +3,101 @@
 // Author: Zach Zeleznick
 // Twitter: @zzxiv
 
-let {focusTab} = await kit('chrome')
+const {focusTab} = await kit('chrome')
 
-const makeRequest = async () => {
-	const response = await get("https://httpbin.org/get");
-	const data = response.data;
-	console.log(JSON.stringify(data, null, 2));
-	return data;
+const apiUrl = `https://query1.finance.yahoo.com/v7/finance/quote?lang=en-US&region=US&corsDomain=finance.yahoo.com&symbols=` 
+const defaultTickers = ["GME", "AMC", "SNAP"];
+
+// TODO: support create / delete / get saved stock watchlist
+
+const urlToOpen = (ticker) => {
+  return `https://finance.yahoo.com/quote/${ticker}?p=${ticker}`
 }
-
-// makeRequest()
-
-const baseUrl = `https://query1.finance.yahoo.com/v7/finance/quote?lang=en-US&region=US&corsDomain=finance.yahoo.com&symbols=` 
-const openUrl = `https://finance.yahoo.com/quote/SNAP?p=SNAP`
-
-const urlForTicker = (ticker) => {
-	return `https://finance.yahoo.com/quote/${ticker}?p=${ticker}`
-}
-
 const getStocks = async (stocks) => {
-	stocks = stocks ? stocks : ["GME", "AMC", "SNAP"].join(',');
-	const response = await get(`${baseUrl}${stocks}`);
-	const data = response.data;
-	const { quoteResponse: { result, error } } = data;
-	console.log(JSON.stringify(result, null, 2));
-	return result;
+  stocks = stocks ? stocks : defaultTickers.join(',');
+  const response = await get(`${apiUrl}${stocks}`);
+  const { quoteResponse: { result, error } } = response.data;
+  // TODO: handle errors 
+  // console.log(JSON.stringify(result, null, 2));
+  return result;
 }
 
-const quoteToChoice = (quote) => {
-	const { symbol, displayName, regularMarketPrice,
-			regularMarketChange, regularMarketChangePercent,
-	} = quote;
-	const buildHtml = () => {
-		let color = 'gray';
-		const p = regularMarketChangePercent;
-		const significance = Math.abs(p) > 0.25 // should filter on significance based on volatility; arbitray 0.25% cutoff  
-		const pct = (p).toFixed(2)
-		color = significance ? (Math.sign(p) === -1 ? "red" : "green") : color
-		// className="flex flex-row"
-		return `<div class="h-full w-full p-1 text-xs flex flex-col justify-center items-center font-bold">
-      		<div>${regularMarketPrice}</div>
-      		<div style="color:${color}">${pct}%</div>
-      </div>`
-	}
-	return {
-      name: quote.symbol,
-      value: quote.symbol,
-      description: quote.displayName,
-      html: buildHtml(),
+const buildHtml = ({price, percentChange}) => {
+  let color = 'gray';
+  const significance = Math.abs(percentChange) > 0.25; //  arbitray 0.25% cutoff
+  // TODO: should filter on significance based on volatility
+  const pct = percentChange.toFixed(2);
+  color = significance ? (Math.sign(percentChange) === -1 ? "red" : "green") : color;
+  return `<div class="h-full w-full p-1 text-xs flex flex-col justify-center items-center font-bold">
+      <div>${price}</div>
+      <div style="color:${color}">${pct}%</div>
+  </div>`
+}
+
+const quoteResponseToChoice = (quoteResponse) => {
+  const { symbol, displayName, regularMarketPrice,
+      regularMarketChange, regularMarketChangePercent,
+  } = quoteResponse;
+  return {
+      name: symbol,
+      value: symbol,
+      description: displayName,
+      html: buildHtml({price: regularMarketPrice, percentChange: regularMarketChangePercent}),
     }
 }
 
 const validate = async (input) => {
   if (!input) return []
   let results = await getStocks(input)
-  return results.map(quoteToChoice);
+  return results.map(quoteResponseToChoice);
 }
 
-const stocks = await getStocks();
-console.log('stocks:', typeof(stocks), stocks.length);
+const main = async () => {
+  const stocks = await getStocks();
+  const choices = stocks.map(quoteResponseToChoice);
 
-const choices = stocks.map(quoteToChoice);
+  let selectedTicker = await arg(
+  {
+      message: "Search stocks:",
+      validate: getStocks,
+  },
+    choices
+  );
 
-// ideally can pre-fill w/o args :/
- 
-let result = await arg(
-{
-    message: "Search stocks:",
-    validate: getStocks,
-},
-  choices
-);
+  // open tab for quote
+  focusTab(urlToOpen(selectedTicker));
+}
 
-// Add remove / add watch list and use save from minmist for stock list
-// Price change and other options
-// consider using "marketState": "POST" checks
-// and pre / post html updates
+main();
 
-console.log(`${result}: result`);
-// maybe open in new tab with quote
 
-// open tab for quote
-focusTab(urlForTicker(result));
+// Feature Log
+// V0
+// - Basic Functionality
+//    - [x] Fetch list of quotes w/ prices
+//   - [x] include % change
+//   - [x] conditional style of % change
+//
+// - Bells & Whistles
+//   - [x] open selected quote in chrome tab
+//
 
-// Note: incorporate onTab API?
-
-// onTab("Add", add)
-// onTab("Toggle", toggle)
-
+// Todos List
+// V0+
+// - Improve data flow
+//   - [ ] simple error checking
+//   - [ ] condition values based on "marketState": "POST" / "PRE" / "REGULAR"
+//
+// - Read + Write Preferences
+//   - [ ] support create / delete / get saved stock watchlist (e.g. lowdb)
+//
+// - Advanced Styles
+//   - [ ] add conditional styles based on marketState
+//
+// - Display preferences
+//   - [ ] toggle between % and abs change
+//
+// - Bells & Whistles
+//   - [ ] toggle between watchlists
+//   - [ ] toggle between % and abs change
+//   - [ ] incorporate onTab API (e.g. onTab("Add", add))
