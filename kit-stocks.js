@@ -55,20 +55,12 @@ const validate = async (input) => {
 const main = async () => {
   const stocks = await getStocks();
   const choices = stocks.map(quoteResponseToChoice);
-
-  let selectedTicker = await arg(
-  {
-      message: "Search stocks:",
-      validate: getStocks,
-  },
-    choices
-  );
-
-  // open tab for quote
-  focusTab(urlToOpen(selectedTicker));
+  let selectedTicker = await arg("Search stocks:", choices);
+  focusTab(urlToOpen(selectedTicker)); // open tab for quote
 }
 
 main();
+
 
 
 // Feature Log
