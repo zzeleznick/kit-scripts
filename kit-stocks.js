@@ -47,15 +47,21 @@ const getStocks = async (stocks) => {
   return result;
 }
 
-const buildHtml = ({price, percentChange}) => {
+const buildHtml = ({price, priceChange, percentChange}) => {
   let color = 'gray';
   const significance = Math.abs(percentChange) > 0.25; //  arbitray 0.25% cutoff
   // TODO: should filter on significance based on volatility
+  price = price.toFixed(2);
   const pct = percentChange.toFixed(2);
+  const delta = ""; // priceChange.toFixed(2); // fix styless
   color = significance ? (Math.sign(percentChange) === -1 ? "red" : "green") : color;
+  const arrow = Math.sign(percentChange) === -1 ? "↓" : "↑"; 
   return `<div class="h-full w-full p-1 text-xs flex flex-col justify-center items-center font-bold">
       <div>${price}</div>
-      <div style="color:${color}">${pct}%</div>
+      <div style="color:${color}">
+        <span>${arrow} ${delta}</span>
+        <span>${pct}%</span>
+      </div>
 </div>`
 }
 
@@ -68,7 +74,11 @@ const quoteResponseToChoice = (quoteResponse) => {
       name: symbol,
       value: symbol,
       description: displayName,
-      html: buildHtml({price: regularMarketPrice, percentChange: regularMarketChangePercent}),
+      html: buildHtml({
+        price: regularMarketPrice,
+        priceChange: regularMarketChange,
+        percentChange: regularMarketChangePercent,
+      }),
     }
   } catch(e) {
     console.error(e);
