@@ -5,6 +5,11 @@
 // Shortcut: Alt+A
 
 const {Icns} = await npm('@fiahfy/icns');
+const {decode} = await npm('@fiahfy/packbits');
+const {PNG} = await npm('pngjs');
+
+const sharp = await npm('sharp');
+
 const {fileSearch} = await kit('file')
 
 // see https://en.wikipedia.org/wiki/Apple_Icon_Image_format#Icon_types
@@ -16,19 +21,23 @@ const formatObjects = [
 ]
 
 const formats = formatObjects.map(({osType}) => osType);
+const iconSizes = {
+  icp6: 64,
+  ic07: 128,
+  ic08: 256,
+  ic09: 512,
+}
 
 const loadIconSet = async (filepath) => {
   const buf = await readFile(filepath);
   const icns = Icns.from(buf);
   const imgBuffers = icns.images.filter(({osType}) => formats.indexOf(osType) !== -1 );
-  if (filepath.match(/Kit.app/)) {
-    console.log("loadIconSet:", JSON.stringify(
-      icns.images.map(({osType, bytes}) => { return {osType, bytes}}), null, 2)
-    );
-  }
+  console.log("loadIconSet -", `filepath:${filepath} `, JSON.stringify(
+    icns.images.map(({osType, bytes}) => { return {osType, bytes, size: iconSizes[osType] }}), null, 2)
+  );
   // console.log("loadIconSet:", icns.images[0].osType);
   imgBuffers.sort((a,b) => a.size > b.size ? -1 : a.size < b.size ? 1 : 0) // reverse sort
-  return imgBuffers.map((icon) => icon.image);
+  return imgBuffers.map(({image, osType}) => {return {image, size: iconSizes[osType]}});
 }
 
 const writeImage = async ({filepath, appName}) => {
@@ -38,7 +47,49 @@ const writeImage = async ({filepath, appName}) => {
     console.warn(`Failed to find images for app ${appName} at ${filepath}`);
     return
   }
-  await writeFile(imageOutLocation, imgBuffers[0]);
+  const tempLocation = imageOutLocation.replace(".png", "_tmp.png");
+  const buf = imgBuffers[0]
+  const decodedBuff = decode(buf.image, { format: 'icns' });
+
+  console.log(`${filepath}, ${buf.size}, ${decodedBuff.length}`);
+
+  const png = new PNG({
+      width: buf.size,
+      height: buf.size,
+      colorType: 6,
+      // filterType: -1
+  });
+  // new Jimp({ data: buffer, width: 1280, height: 768 }, (err, image) => { });
+
+  for (var y = 0; y < png.height; y++) {
+      for (var x = 0; x < png.width; x++) {
+          var idx = (png.width * y + x) << 2;
+          png.data[idx  ] = decodedBuff[idx  ]// 255; // red
+          png.data[idx+1] = decodedBuff[idx]// 218; // green
+          png.data[idx+2] = decodedBuff[idx]// 185; // blue
+          png.data[idx+3] = decodedBuff[idx]// 128; // alpha (0 is transparent)
+      }
+  }
+  // const options = { colorType: 6 };
+  // var buffer = PNG.sync.write(png, options);
+  await png.pack().pipe(createWriteStream(tempLocation));
+  return
+
+  await writeFile(tempLocation, image, 'binary');
+  // try resizing
+  // imgBuffers[0] : Input buffer contains unsupported image format
+  // Cannot use same file for input and output
+  // writing and then reading –> still unsupported image format
+  // kit.png has weird encoding and cannot be read :/
+  // Note: console.error is not piped
+  if (filepath.match(/Kit.app/) || filepath.match(/Tunnelblick.app/) || filepath.match(/iMovie.app/)) {
+    console.log(image);
+    const metadata = await sharp(tempLocation).metadata()
+                           .catch(err => { console.warn(`Failed to find metadata: ${tempLocation}, error: ${err}`) })
+    console.log(`metadata:${JSON.stringify(metadata)}`);
+  }
+  await sharp(tempLocation).resize(128, 128).png().toFile(imageOutLocation)
+        .catch(err => { console.warn(`Failed to decode: ${tempLocation}, error: ${err}`) })
 }
 
 const createOutDir = () => {
@@ -68,7 +119,7 @@ const saveIconSets = async () => {
   createOutDir();
   const iconSets = fetchIconSets();
   for (let i = iconSets.length - 1; i >= 0; i--) {
-   await writeImage(iconSets[i]);
+    await writeImage(iconSets[i]);
   }
 }
 
@@ -118,8 +169,9 @@ let choices = async () => {
 // should only display if it exists
 
 // fetchIconSets();
-await loadIconSet('/Applications/Kit.app/Contents/Resources/Kit.icns'); // only found ic09
-// await saveIconSets();
+// await loadIconSet('/Applications/Kit.app/Contents/Resources/Kit.icns'); // only found ic09
+await saveIconSets();
+
 
 let app = await arg('Select app:', choices, true)
 
