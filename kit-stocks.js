@@ -5,16 +5,34 @@
 
 const {focusTab} = await kit('chrome')
 
-const apiUrl = `https://query1.finance.yahoo.com/v7/finance/quote?lang=en-US&region=US&corsDomain=finance.yahoo.com&symbols=` 
 const defaultTickers = ["GME", "AMC", "SNAP"];
+const apiUrl = `https://query1.finance.yahoo.com/v7/finance/quote?lang=en-US&region=US&corsDomain=finance.yahoo.com&symbols=`
+
+const tickersDB = db('tickers', { tickers: defaultTickers.map((v, i) => {return {symbol: v, id: i }}) });
+const tickersRef = tickersDB.get("tickers");
 
 // TODO: support create / delete / get saved stock watchlist
 
 const urlToOpen = (ticker) => {
   return `https://finance.yahoo.com/quote/${ticker}?p=${ticker}`
 }
+
+const getTickers = () => tickersRef.value()
+
+const tickersToSymbols = () => getTickers().map(({symbol}) => symbol)
+
+const tickersToChoices = () => {
+  return getTickers().map(({symbol, id}) => {
+    return {
+      name: symbol,
+      value: id,
+    }
+  });
+}
+
 const getStocks = async (stocks) => {
-  stocks = stocks ? stocks : defaultTickers.join(',');
+  stocks = stocks ? stocks : defaultTickers;
+  stocks = Array.isArray(stocks) ? stocks.join(",") : stocks;
   const response = await get(`${apiUrl}${stocks}`);
   const { quoteResponse: { result, error } } = response.data;
   // TODO: handle errors 
@@ -31,42 +49,53 @@ const buildHtml = ({price, percentChange}) => {
   return `<div class="h-full w-full p-1 text-xs flex flex-col justify-center items-center font-bold">
       <div>${price}</div>
       <div style="color:${color}">${pct}%</div>
-  </div>`
+</div>`
 }
 
 const quoteResponseToChoice = (quoteResponse) => {
   const { symbol, displayName, regularMarketPrice,
-      regularMarketChange, regularMarketChangePercent,
+          regularMarketChange, regularMarketChangePercent,
   } = quoteResponse;
   return {
-      name: symbol,
-      value: symbol,
-      description: displayName,
-      html: buildHtml({price: regularMarketPrice, percentChange: regularMarketChangePercent}),
-    }
+    name: symbol,
+    value: symbol,
+    description: displayName,
+    html: buildHtml({price: regularMarketPrice, percentChange: regularMarketChangePercent}),
+  }
 }
 
-const validate = async (input) => {
-  if (!input) return []
-  let results = await getStocks(input)
-  return results.map(quoteResponseToChoice);
-}
-
-const main = async () => {
-  const stocks = await getStocks();
+const listTickers = async () => {
+  const symbols = tickersToSymbols();
+  const stocks = await getStocks(symbols);
   const choices = stocks.map(quoteResponseToChoice);
-  let selectedTicker = await arg("Search stocks:", choices);
+  const selectedTicker = await arg("Search stocks:", choices);
   focusTab(urlToOpen(selectedTicker)); // open tab for quote
 }
 
-main();
+const addTicker = async () => {
+  const symbol = await arg("Select stock to add:");
+  tickersRef.insert({ symbol }).write();
+  return await listTickers();
+};
 
+const removeTicker = async () => {
+  const choices = tickersToChoices();
+  const id = await arg("Select stock to remove", choices);
+  tickersRef.remove({ id }).write();
+  return await listTickers();
+};
 
+onTab("List", listTickers)
+onTab("Add", addTicker)
+onTab("Remove", removeTicker)
+
+// bad stock drops :/
+// cannot remove default stocks
 
 // Feature Log
 // V0
 // - Basic Functionality
-//    - [x] Fetch list of quotes w/ prices
+//   - [x] Fetch list of quotes w/ prices
 //   - [x] include % change
 //   - [x] conditional style of % change
 //
