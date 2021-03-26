@@ -21,7 +21,12 @@ const loadIconSet = async (filepath) => {
   const buf = await readFile(filepath);
   const icns = Icns.from(buf);
   const imgBuffers = icns.images.filter(({osType}) => formats.indexOf(osType) !== -1 );
-  // console.log(icns.images[0].osType);
+  if (filepath.match(/Kit.app/)) {
+    console.log("loadIconSet:", JSON.stringify(
+      icns.images.map(({osType, bytes}) => { return {osType, bytes}}), null, 2)
+    );
+  }
+  // console.log("loadIconSet:", icns.images[0].osType);
   imgBuffers.sort((a,b) => a.size > b.size ? -1 : a.size < b.size ? 1 : 0) // reverse sort
   return imgBuffers.map((icon) => icon.image);
 }
@@ -113,7 +118,8 @@ let choices = async () => {
 // should only display if it exists
 
 // fetchIconSets();
-await saveIconSets();
+await loadIconSet('/Applications/Kit.app/Contents/Resources/Kit.icns'); // only found ic09
+// await saveIconSets();
 
 let app = await arg('Select app:', choices, true)
 
