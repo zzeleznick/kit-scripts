@@ -103,7 +103,7 @@ const removeTicker = async () => {
   const choices = tickersToChoices();
   const id = await arg("Select stock to remove:", choices);
   tickersRef.remove({ id }).write();
-  return await removeTicker(); // NOTE: calling listTickers will not update tabs as of 3/25 :(
+  return await removeTicker();
 };
 
 onTab("List", listTickers)
@@ -112,7 +112,7 @@ onTab("Remove", removeTicker)
 
 
 // Feature Log
-// V0
+// v0
 // - Basic Functionality
 //   - [x] Fetch list of quotes w/ prices
 //   - [x] include % change
@@ -121,15 +121,19 @@ onTab("Remove", removeTicker)
 // - Bells & Whistles
 //   - [x] open selected quote in chrome tab
 //
+// v1
+// - Read + Write Preferences
+//   - [x] support create / delete / get saved stocks (e.g. lowdb)
+//
+// - Bells & Whistles
+//   - [x] incorporate onTab API (e.g. onTab("Add", add))
+//
 
 // Todos List
-// V0+
+// v_n
 // - Improve data flow
 //   - [ ] simple error checking
 //   - [ ] condition values based on "marketState": "POST" / "PRE" / "REGULAR"
-//
-// - Read + Write Preferences
-//   - [ ] support create / delete / get saved stock watchlist (e.g. lowdb)
 //
 // - Advanced Styles
 //   - [ ] add conditional styles based on marketState
@@ -137,7 +141,10 @@ onTab("Remove", removeTicker)
 // - Display preferences
 //   - [ ] toggle between % and abs change
 //
+// - Read + Write Preferences
+//   - [ ] support create / delete / get saved watchlists (e.g. lowdb)
+//
 // - Bells & Whistles
 //   - [ ] toggle between watchlists
 //   - [ ] toggle between % and abs change
-//   - [ ] incorporate onTab API (e.g. onTab("Add", add))
+//
