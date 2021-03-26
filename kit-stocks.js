@@ -8,10 +8,14 @@ const {focusTab} = await kit('chrome')
 const defaultTickers = ["GME", "AMC", "SNAP"];
 const apiUrl = `https://query1.finance.yahoo.com/v7/finance/quote?lang=en-US&region=US&corsDomain=finance.yahoo.com&symbols=`
 
-const tickersDB = db('tickers', { tickers: defaultTickers.map((v, i) => {return {symbol: v, id: `id-${i}` }}) });
+const tickersDB = db("tickers", { tickers: [] });
 const tickersRef = tickersDB.get("tickers");
 
-// TODO: support create / delete / get saved stock watchlist
+// helper in the case all tickers are removed – we should reinit or return empty result
+const initDB = () => {
+  const tickers = defaultTickers.map((v, i) => {return {symbol: v, id: `id-${i}` }});
+  tickersDB.set("tickers", tickers).write();
+}
 
 const urlToOpen = (ticker) => {
   return `https://finance.yahoo.com/quote/${ticker}?p=${ticker}`
@@ -33,6 +37,7 @@ const tickersToChoices = () => {
 const getStocks = async (stocks) => {
   stocks = stocks ? stocks : defaultTickers;
   stocks = Array.isArray(stocks) ? stocks.join(",") : stocks;
+  // TODO: ensure stocks is not empty string from empty array case
   const response = await get(`${apiUrl}${stocks}`);
   const { quoteResponse: { result, error } } = response.data;
   // TODO: handle errors 
@@ -70,7 +75,12 @@ const quoteResponseToChoice = (quoteResponse) => {
 }
 
 const listTickers = async () => {
-  const symbols = tickersToSymbols();
+  let symbols = tickersToSymbols();
+  if (!symbols || !symbols.length) {
+    initDB();
+    console.log("reinit db");
+    symbols = tickersToSymbols();
+  }
   const stocks = await getStocks(symbols);
   const choices = stocks.map(quoteResponseToChoice).filter(x => x);
   const selectedTicker = await arg("Search stocks:", choices);
