@@ -8,7 +8,7 @@ const {focusTab} = await kit('chrome')
 const defaultTickers = ["GME", "AMC", "SNAP"];
 const apiUrl = `https://query1.finance.yahoo.com/v7/finance/quote?lang=en-US&region=US&corsDomain=finance.yahoo.com&symbols=`
 
-const tickersDB = db('tickers', { tickers: defaultTickers.map((v, i) => {return {symbol: v, id: i }}) });
+const tickersDB = db('tickers', { tickers: defaultTickers.map((v, i) => {return {symbol: v, id: `id-${i}` }}) });
 const tickersRef = tickersDB.get("tickers");
 
 // TODO: support create / delete / get saved stock watchlist
@@ -56,18 +56,23 @@ const quoteResponseToChoice = (quoteResponse) => {
   const { symbol, displayName, regularMarketPrice,
           regularMarketChange, regularMarketChangePercent,
   } = quoteResponse;
-  return {
-    name: symbol,
-    value: symbol,
-    description: displayName,
-    html: buildHtml({price: regularMarketPrice, percentChange: regularMarketChangePercent}),
+  try {
+    return {
+      name: symbol,
+      value: symbol,
+      description: displayName,
+      html: buildHtml({price: regularMarketPrice, percentChange: regularMarketChangePercent}),
+    }
+  } catch(e) {
+    console.error(e);
+    return null
   }
 }
 
 const listTickers = async () => {
   const symbols = tickersToSymbols();
   const stocks = await getStocks(symbols);
-  const choices = stocks.map(quoteResponseToChoice);
+  const choices = stocks.map(quoteResponseToChoice).filter(x => x);
   const selectedTicker = await arg("Search stocks:", choices);
   focusTab(urlToOpen(selectedTicker)); // open tab for quote
 }
@@ -75,22 +80,20 @@ const listTickers = async () => {
 const addTicker = async () => {
   const symbol = await arg("Select stock to add:");
   tickersRef.insert({ symbol }).write();
-  return await listTickers();
+  return await addTicker();
 };
 
 const removeTicker = async () => {
   const choices = tickersToChoices();
-  const id = await arg("Select stock to remove", choices);
+  const id = await arg("Select stock to remove:", choices);
   tickersRef.remove({ id }).write();
-  return await listTickers();
+  return await removeTicker(); // NOTE: calling listTickers will not update tabs as of 3/25 :(
 };
 
 onTab("List", listTickers)
 onTab("Add", addTicker)
 onTab("Remove", removeTicker)
 
-// bad stock drops :/
-// cannot remove default stocks
 
 // Feature Log
 // V0
