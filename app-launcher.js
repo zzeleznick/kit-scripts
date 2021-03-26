@@ -5,22 +5,11 @@
 // Shortcut: Alt+A
 
 const {Icns} = await npm('@fiahfy/icns');
-const {decode} = await npm('@fiahfy/packbits');
-const {PNG} = await npm('pngjs');
-
 const sharp = await npm('sharp');
 
 const {fileSearch} = await kit('file')
 
 // see https://en.wikipedia.org/wiki/Apple_Icon_Image_format#Icon_types
-const formatObjects = [
-  { osType: 'icp6', size: 64, format: 'PNG' },
-  { osType: 'ic07', size: 128, format: 'PNG' },
-  { osType: 'ic08', size: 256, format: 'PNG' },
-  { osType: 'ic09', size: 512, format: 'PNG' },
-]
-
-const formats = formatObjects.map(({osType}) => osType);
 const iconSizes = {
   icp6: 64,
   ic07: 128,
@@ -31,11 +20,10 @@ const iconSizes = {
 const loadIconSet = async (filepath) => {
   const buf = await readFile(filepath);
   const icns = Icns.from(buf);
-  const imgBuffers = icns.images.filter(({osType}) => formats.indexOf(osType) !== -1 );
-  console.log("loadIconSet -", `filepath:${filepath} `, JSON.stringify(
-    icns.images.map(({osType, bytes}) => { return {osType, bytes, size: iconSizes[osType] }}), null, 2)
-  );
-  // console.log("loadIconSet:", icns.images[0].osType);
+  const imgBuffers = icns.images.filter(({osType}) => iconSizes[osType]);
+  // console.log("loadIconSet -", `filepath:${filepath} `, JSON.stringify(
+  //   icns.images.map(({osType, bytes}) => { return {osType, bytes, size: iconSizes[osType] }}), null, 2)
+  // );
   imgBuffers.sort((a,b) => a.size > b.size ? -1 : a.size < b.size ? 1 : 0) // reverse sort
   return imgBuffers.map(({image, osType}) => {return {image, size: iconSizes[osType]}});
 }
@@ -47,49 +35,22 @@ const writeImage = async ({filepath, appName}) => {
     console.warn(`Failed to find images for app ${appName} at ${filepath}`);
     return
   }
-  const tempLocation = imageOutLocation.replace(".png", "_tmp.png");
-  const buf = imgBuffers[0]
-  const decodedBuff = decode(buf.image, { format: 'icns' });
-
-  console.log(`${filepath}, ${buf.size}, ${decodedBuff.length}`);
-
-  const png = new PNG({
-      width: buf.size,
-      height: buf.size,
-      colorType: 6,
-      // filterType: -1
-  });
-  // new Jimp({ data: buffer, width: 1280, height: 768 }, (err, image) => { });
-
-  for (var y = 0; y < png.height; y++) {
-      for (var x = 0; x < png.width; x++) {
-          var idx = (png.width * y + x) << 2;
-          png.data[idx  ] = decodedBuff[idx  ]// 255; // red
-          png.data[idx+1] = decodedBuff[idx]// 218; // green
-          png.data[idx+2] = decodedBuff[idx]// 185; // blue
-          png.data[idx+3] = decodedBuff[idx]// 128; // alpha (0 is transparent)
-      }
-  }
-  // const options = { colorType: 6 };
-  // var buffer = PNG.sync.write(png, options);
-  await png.pack().pipe(createWriteStream(tempLocation));
-  return
-
-  await writeFile(tempLocation, image, 'binary');
+  const image = imgBuffers[0].image;
+  await writeFile(imageOutLocation, image); // specifying 'binary' does not fix
   // try resizing
   // imgBuffers[0] : Input buffer contains unsupported image format
   // Cannot use same file for input and output
   // writing and then reading –> still unsupported image format
   // kit.png has weird encoding and cannot be read :/
   // Note: console.error is not piped
-  if (filepath.match(/Kit.app/) || filepath.match(/Tunnelblick.app/) || filepath.match(/iMovie.app/)) {
-    console.log(image);
-    const metadata = await sharp(tempLocation).metadata()
-                           .catch(err => { console.warn(`Failed to find metadata: ${tempLocation}, error: ${err}`) })
-    console.log(`metadata:${JSON.stringify(metadata)}`);
-  }
-  await sharp(tempLocation).resize(128, 128).png().toFile(imageOutLocation)
-        .catch(err => { console.warn(`Failed to decode: ${tempLocation}, error: ${err}`) })
+  // if (filepath.match(/Kit.app/) || filepath.match(/Tunnelblick.app/) || filepath.match(/iMovie.app/)) {
+  const metadata = await sharp(imageOutLocation).metadata()
+                           .catch(err => { console.warn(`metadata failure: ${imageOutLocation}, error: ${err}`) })
+  // console.log(`metadata:${JSON.stringify(metadata)}`);
+  // await sharp(tempLocation).resize(128, 128).png().toFile(imageOutLocation)
+  //       .catch(err => { console.warn(`Failed to decode: ${tempLocation}, error: ${err}`) })
+  // NOTE: metadata contains nice properties like width, height, space, format, 
+  return { img: imageOutLocation, success: metadata ? true : false }
 }
 
 const createOutDir = () => {
@@ -118,9 +79,12 @@ const fetchIconSets = () => {
 const saveIconSets = async () => {
   createOutDir();
   const iconSets = fetchIconSets();
-  for (let i = iconSets.length - 1; i >= 0; i--) {
-    await writeImage(iconSets[i]);
-  }
+  const results = await Promise.all(iconSets.map(v => writeImage(v)));
+  // for (let i = iconSets.length - 1; i >= 0; i--) {
+  //   await writeImage(iconSets[i]);
+  // }
+  console.log(JSON.stringify(results, null, 2));
+  return results
 }
 
 
@@ -152,17 +116,29 @@ let choices = async () => {
     ...group(/System/)(apps),
     ...group(/Users/)(apps),
   ].map((value) => {
-    const appName = value.split('/').pop();
-    const img = value.startsWith('/Applications') ? `file://${kenvPath("tmp", "images", appName.replace(".app", ".png"))}` : null;
-    img ? console.log(img) : null;
-    return {
-      name: appName.replace(/(\.app)$|(\.prefPane)$/, ''),
-      value,
-      description: value,
-      img,
+     const appName = value.split('/').pop();
+     const imgPath = kenvPath("tmp", "images", appName.replace(".app", ".png"));
+     const img = imageMap[imgPath] ? `file://${imgPath}` : null;
+     img ? console.log(img) : null;
+     return {
+       name: appName.replace(/(\.app)$|(\.prefPane)$/, ''),
+       value,
+       description: value,
+       img,
     }
   })
 }
+
+// via https://dev.to/afewminutesofcode/how-to-convert-an-array-into-an-object-in-javascript-25a4
+const convertArrayToObject = (array, key) => {
+  const initialValue = {};
+  return array.reduce((obj, item) => {
+    return {
+      ...obj,
+      [item[key]]: item,
+    };
+  }, initialValue);
+};
 
 
 // kit image is broken :/
@@ -170,8 +146,12 @@ let choices = async () => {
 
 // fetchIconSets();
 // await loadIconSet('/Applications/Kit.app/Contents/Resources/Kit.icns'); // only found ic09
-await saveIconSets();
-
+const imageResults = await saveIconSets();
+const imageMap = imageResults.filter(({success}) => success).reduce(
+  (obj, item) => {
+    return {...obj, [item["img"]]: true}
+  }, {} // initial value
+);
 
 let app = await arg('Select app:', choices, true)
 
