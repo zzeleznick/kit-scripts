@@ -93,7 +93,7 @@ const fetchCategories = async () => {
   }
   const graphqlResponse = response.data;
   // console.log(JSON.stringify(categories, null, 2));
-  const { 
+  const {
     data: {
       repository: {
         discussionCategories: {
@@ -229,13 +229,6 @@ const buildChoice = (node) => {
   }
 }
 
-const showAll = async () => {
-  const nodes = await allDiscussions();
-  const choices = nodes.map(buildChoice);
-  const selectedIssue = await arg("Search discussions:", choices);
-  focusTab(selectedIssue);
-}
-
 const showCategory = async (categoryId) => {
   const nodes = await fetchDiscussions(categoryId);
   const choices = nodes.map(buildChoice);
@@ -259,13 +252,4 @@ const buildTabs = async () => {
 
 await setupEmojis();
 
-// await fetchCategories();
-// await showAll();
-
 buildTabs();
-
-// onTab("TAB 1", async () => { await arg("Test 1") })
-// onTab("TAB 2", async () => { await arg("Test 2") })
-// onTab("TAB 3", async () => { await arg("Test 3") })
-// onTab("TAB 4", async () => { await arg("Test 4") })
-// onTab("TAB 5", async () => { await arg("Test 5") })
