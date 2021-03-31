@@ -4,7 +4,7 @@
 // Twitter: @zzxiv
 
 const {focusTab} = await kit('chrome')
-const humanizeDuration = await npm('humanize-duration')
+// const humanizeDuration = await npm('humanize-duration')
 
 const emojisDB = db("emojis", { emojis: {} });
 const emojisRef = emojisDB.get("emojis");
@@ -207,12 +207,35 @@ const buildHtml = ({emoji}) => {
   `
 }
 
+const humanizeDuration = (duration) => {
+  // intend to mirror `humanizeDuration(duration, { round: true, largest: 1 })`
+  const components = {
+    "seconds": 1000,
+    "minutes": 60000,
+    "hours":   3600000,
+    "days":    86400000,
+  }
+  const units = Object.keys(components);
+  for (let i = units.length - 1; i > -1; i--) {
+    let unit = units[i];
+    const divisor = components[unit];
+    const val = duration / divisor;
+    const fval = Math.floor(val);
+    const rval = Math.round(val);
+    if (fval === 0) {
+      continue
+    }
+    unit = rval === 1 ? unit.slice(0, unit.length -1) : unit;
+    return `${rval} ${unit}`
+  }
+}
+
 const humanizeTime = (createdAt) => {
   const then = new Date(createdAt);
   const now = new Date();
   const duration = now.getTime() - then.getTime();
   if (duration < 259200000) { // within 30 days (in ms)
-    return `${humanizeDuration(duration, { round: true, largest: 1 })} ago`;
+    return `${humanizeDuration(duration)} ago`;
   }
   const sameYear = now.getYear() === then.getYear();
   const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
