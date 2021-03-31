@@ -214,8 +214,10 @@ const humanizeTime = (createdAt) => {
   if (duration < 259200000) { // within 30 days (in ms)
     return `${humanizeDuration(duration, { round: true, largest: 1 })} ago`;
   }
+  const sameYear = now.getYear() === then.getYear();
   const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
-  return `on ${then.toLocaleDateString('en-US', { timeZone })}`
+  const options = { timeZone, year: sameYear ? undefined : 'numeric', month: 'short', day: 'numeric' };
+  return `on ${then.toLocaleDateString('en-US', options)}`
 }
 
 const buildChoice = (node) => {
