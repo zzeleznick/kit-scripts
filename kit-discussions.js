@@ -4,6 +4,7 @@
 // Twitter: @zzxiv
 
 const {focusTab} = await kit('chrome')
+const humanizeDuration = await npm('humanize-duration')
 
 const emojisDB = db("emojis", { emojis: {} });
 const emojisRef = emojisDB.get("emojis");
@@ -33,6 +34,7 @@ if (!token) {
 }
 
 const fetchEmojis = async () => {
+  // Could install and use as an npm package, but we just need a k-v map ...
   const emojiURL = 'https://raw.githubusercontent.com/omnidan/node-emoji/master/lib/emoji.json';
   const response = await get(emojiURL);
   const emojis = response.data;
@@ -205,6 +207,17 @@ const buildHtml = ({emoji}) => {
   `
 }
 
+const humanizeTime = (createdAt) => {
+  const then = new Date(createdAt);
+  const now = new Date();
+  const duration = now.getTime() - then.getTime();
+  if (duration < 259200000) { // within 30 days (in ms)
+    return `${humanizeDuration(duration, { round: true, largest: 1 })} ago`;
+  }
+  const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+  return `on ${then.toLocaleDateString('en-US', { timeZone })}`
+}
+
 const buildChoice = (node) => {
   const {
     title,
@@ -219,7 +232,7 @@ const buildChoice = (node) => {
     },
   } = node;
   const url = `https://github.com${resourcePath}`
-  const description = `${login} created in ${name}`
+  const description = `${login} created ${humanizeTime(createdAt)} in ${name}`
   const html = buildHtml({emoji})
   return {
       name: title,
