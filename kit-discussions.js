@@ -238,9 +238,10 @@ const humanizeTime = (createdAt, fakeTime) => {
   const then = new Date(createdAt);
   const now = fakeTime ? new Date(fakeTime) : new Date();
   let duration = now - then; // implicitly calls getTime();
+  // NOTE: Github UI rounds (so this interesting)
   if (duration > 86400000) { // handle rounding case for days
-    const loffset = (then.getUTCHours() - 12) * 3600000;
-    const roffset = (12 - now.getUTCHours()) * 3600000;
+    const loffset = (then.getHours() - 12) * 3600000;
+    const roffset = (12 - now.getHours()) * 3600000;
     duration = duration + loffset + roffset;
   }
   if (duration < 2592000000) { // within 30 days (in ms)
