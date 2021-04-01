@@ -34,7 +34,7 @@ const createRegEx = (input = '') => {
 }
 
 const showCategory = (category) => (input) => {
-  console.log(`input: ${input}`)
+  // console.log(`input: ${input}`)
   const dataset = category ? colorGroups[category] : allColors;
   // console.log(`category: ${category}, ${dataset}, ${allColors.length}`)
   const matcher = createRegEx(input)
@@ -55,12 +55,14 @@ const showCategory = (category) => (input) => {
   return html
 }
 
-const buildPrompt = (name) => async () => {
+const buildReactivePrompt = (name) => async () => {
   await arg({
-    message: name, // prompt placeholder
+    message: "Enter a color:", // name, // prompt placeholder
     input: " ", // space set intentionally to trigger render
   }, showCategory(name === "all" ? "" : name))
 }
+
+const buildPrompt = (name) => async () => await arg(name, showCategory(name === "all" ? "" : name)(""));
 
 const buildTabs = () => {
   const groups = Object.keys(colorGroups);
