@@ -209,6 +209,10 @@ const buildHtml = ({emoji}) => {
 
 const humanizeDuration = (duration) => {
   // intend to mirror `humanizeDuration(duration, { round: true, largest: 1 })`
+  // note that 36 hours (1.5 days) would round to 2 days which isn't always the goal
+  // e.g.
+  // '2021-03-30T06:00:00Z' <> '2021-03-31T18:00:00Z' 36 hours, expect 1 vs 2
+  // '2021-03-30T18:00:00Z' <> '2021-04-01T06:00:00Z' 36 hours, expect 2
   const components = {
     "seconds": 1000,
     "minutes": 60000,
@@ -230,11 +234,16 @@ const humanizeDuration = (duration) => {
   }
 }
 
-const humanizeTime = (createdAt) => {
+const humanizeTime = (createdAt, fakeTime) => {
   const then = new Date(createdAt);
-  const now = new Date();
-  const duration = now.getTime() - then.getTime();
-  if (duration < 259200000) { // within 30 days (in ms)
+  const now = fakeTime ? new Date(fakeTime) : new Date();
+  let duration = now - then; // implicitly calls getTime();
+  if (duration > 86400000) { // handle rounding case for days
+    const loffset = (then.getUTCHours() - 12) * 3600000;
+    const roffset = (12 - now.getUTCHours()) * 3600000;
+    duration = duration + loffset + roffset;
+  }
+  if (duration < 2592000000) { // within 30 days (in ms)
     return `${humanizeDuration(duration)} ago`;
   }
   const sameYear = now.getYear() === then.getYear();
