@@ -46,11 +46,16 @@ const extractMetadata = (text) => {
 }
 
 const loadScript = async (name) => {
+  const cached = scriptsRef.find({ name }).value();
+  if (cached) {
+    console.log(`Using cached for: ${name}`)
+    return cached
+  }
   const text = await fetchScript(name);
   const metadata = {...extractMetadata(text), name}
-  console.log('loadScript value:', scriptsRef.find({ name }).value())
-  scriptsRef.insert({ text, ...metadata}).write();
-  return {text, metadata}
+  const payload = { text, ...metadata}
+  scriptsRef.insert(payload).write();
+  return payload
 }
 
 // const options = {
@@ -71,13 +76,33 @@ const loadScript = async (name) => {
 // say("Hello, " + "name" + "!")
 // `
 
-const buildCodeBlock = (code, metadata = {}) => {
-  const {name, menu, description, author, twitter} = metadata;
+
+// see https://github.com/PrismJS/prism/blob/master/plugins/custom-class/prism-custom-class.js
+
+// Prism.plugins.customClass.add(({language, type, content}) => {
+//   if (language === 'javascript') {
+//     return 'overflow-scroll';
+//   }
+// });
+
+const buildCodeBlock = (code) => {
   const html = Prism.highlight(code, Prism.languages.javascript, 'javascript');
-  const block = `<div class="h-full w-full p-1 text-xs overflow-hidden"><pre><code>${html}</code></pre></div>` 
-  const meta = `<div>${name.split('.')[0]}</div>`
-  const header = `<div class="h-full w-full p-3 flex bg-white>${meta}</div>`
-  return `<div class="h-full w-full>${header}${block}</div>`
+  return `<div class="h-full p-1 text-xs w-screen"><pre><code>${html}</code></pre></div>` 
+}
+
+const smallTextify = (field) => {
+  return field ? `<div class="text-xs">${field}</div>` : ''
+}
+
+const buildCodeModal = (payload) => {
+  let {name, text: code, description, author, twitter} = payload;
+  const block = buildCodeBlock(code)
+  name = name ? `<div class="text-lg text-bold">${name.split('.')[0]}</div>` : ''
+  const meta = [name].concat([description, author, twitter].map(smallTextify)).join('\n');
+  // ideally add some fancier styles like 'box-border border-4 bg-white' here
+  const header = `<div class="h-full p-3">${meta}</div>`
+  const style = "border: solid; border-width:2px; border-color:rgba(0, 0, 0, .025); overflow: scroll;"
+  return `<div class="h-full w-full mb-2 p-1 pb-2" style="${style}">${header}${block}</div>`
 }
 
 const injectCss = (html) => {
@@ -89,20 +114,14 @@ const injectCss = (html) => {
 }
 
 const buildPage = async () => {
-  const {text: code, metadata} = await loadScript('anime-search.js');
-  const html = buildCodeBlock(code, metadata)
+  const payload = await loadScript('anime-search.js');
+  const modals = [buildCodeModal(payload), buildCodeModal(payload)].join('\n');
+  const html = `<div style="overflow: hidden;">${modals}</div>`
   const page = injectCss(html)
   console.log(page);
   return page
 }
 
-// see https://github.com/PrismJS/prism/blob/master/plugins/custom-class/prism-custom-class.js
-
-// Prism.plugins.customClass.add(({language, type, content}) => {
-//   if (language === 'javascript') {
-//     return 'block';
-//   }
-// });
 
 
 const page = await(buildPage);
