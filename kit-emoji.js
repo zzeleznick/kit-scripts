@@ -7,7 +7,7 @@
 const emojisDB = db("emojis", { emojis: {} });
 const emojisRef = emojisDB.get("emojis");
 
-// NOTE: Should extract this into a lib since also used in kit-discussions ...
+// NOTE: Should extract this into a lib since emojis db used in kit-discussions ...
 const fetchEmojis = async () => {
   // Could install and use as an npm package, but we just need a k-v map ...
   const emojiURL = 'https://raw.githubusercontent.com/omnidan/node-emoji/master/lib/emoji.json';
@@ -24,16 +24,9 @@ const setupEmojis = async () => {
   return emojis
 }
 
-const buildHtml = ({emoji}) => {
-  const glyph = lookupEmoji(emoji)
-  return `<div class="flex justify-center">
-    <div> ${glyph} </div>
-  </div>
-  `
-}
-
 const createRegEx = (input = '') => {
   input = input.trim().toLowerCase()
+  // NOTE: don't check length here for snappy ux
   // input = input.length < 3 ? '' : input
   let matcher = input
   try {
@@ -45,7 +38,6 @@ const createRegEx = (input = '') => {
 }
 
 const showEmojis = (emojis) => (input) => {
-  // console.log(`input: ${input}`)
   const matcher = createRegEx(input)
   const inner = Object.entries(emojis)
     .filter(([k,v]) => k.match(matcher) !== null)
@@ -57,10 +49,8 @@ const showEmojis = (emojis) => (input) => {
   <div class="grid grid-cols-1">
    ${inner}
   </div>`
-  // console.log(`category: ${category}`, html);
   return html
 }
-
 
 const buildEmojisRxPanel = async () => {
   const emojis = await setupEmojis();
@@ -84,7 +74,7 @@ const buildEmojisChoices = async () => {
   copy(emoji);
 }
 
-const panel = true
+const panel = true // would be nice to set based on whether shift is pressed with shortcut cmd
 
 panel ? await buildEmojisRxPanel() : await buildEmojisChoices();
 
@@ -93,5 +83,4 @@ panel ? await buildEmojisRxPanel() : await buildEmojisChoices();
 
 // onTab("Choices", buildChoicesEmojis);
 // onTab("Panel", buildReactivePrompt);
-
 
