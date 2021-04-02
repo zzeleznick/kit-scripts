@@ -62,7 +62,11 @@ const buildReactivePrompt = (name) => async () => {
   }, showCategory(name === "all" ? "" : name))
 }
 
-const buildPrompt = (name) => async () => await arg(name, showCategory(name === "all" ? "" : name)(""));
+const buildStaticPrompt = (name) => async () => await arg(name, showCategory(name === "all" ? "" : name)(""));
+
+const reactive = false; // it appears that reactive currently has flicker due to a spurious clear panel call
+
+const buildPrompt = reactive ? buildReactivePrompt : buildStaticPrompt;
 
 const buildTabs = () => {
   const groups = Object.keys(colorGroups);
@@ -77,11 +81,6 @@ const buildTabs = () => {
    onTab(name, method);
   });
 }
-
-// await arg({
-//   message: "All colors", // prompt placeholder
-//   input: " ", // space set intentionally to trigger render
-// }, showCategory())
 
 buildTabs();
 
