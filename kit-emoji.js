@@ -61,6 +61,7 @@ const showEmojis = (emojis) => (input) => {
   return html
 }
 
+
 const buildReactivePrompt = async () => {
   const emojis = await setupEmojis();
   await arg({
@@ -69,5 +70,23 @@ const buildReactivePrompt = async () => {
   }, showEmojis(emojis));
 }
 
+const buildChoicesEmojis = async () => {
+  const emojis = await setupEmojis();
+  const choices = Object.entries(emojis)
+    .map(([k,v]) => {
+    return {
+      name: k,
+      value: v,
+      html: `<div> ${v} </div>`
+    }
+  });
+  const emoji = await arg("Search for emoji:", choices);
+  copy(emoji);
+}
+
 await buildReactivePrompt();
+
+// onTab("Choices", buildChoicesEmojis);
+// onTab("Panel", buildReactivePrompt);
+
 
