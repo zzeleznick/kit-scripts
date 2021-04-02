@@ -62,7 +62,7 @@ const showEmojis = (emojis) => (input) => {
 }
 
 
-const buildReactivePrompt = async () => {
+const buildEmojisRxPanel = async () => {
   const emojis = await setupEmojis();
   await arg({
     message: "Search for emoji:",
@@ -70,7 +70,7 @@ const buildReactivePrompt = async () => {
   }, showEmojis(emojis));
 }
 
-const buildChoicesEmojis = async () => {
+const buildEmojisChoices = async () => {
   const emojis = await setupEmojis();
   const choices = Object.entries(emojis)
     .map(([k,v]) => {
@@ -84,7 +84,12 @@ const buildChoicesEmojis = async () => {
   copy(emoji);
 }
 
-await buildReactivePrompt();
+const panel = true
+
+panel ? await buildEmojisRxPanel() : await buildEmojisChoices();
+
+
+// NOTE: tabs don't play nicely with choices + panels
 
 // onTab("Choices", buildChoicesEmojis);
 // onTab("Panel", buildReactivePrompt);
