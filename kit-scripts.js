@@ -204,8 +204,10 @@ const buildPage = (fileObjects) => (input) => {
   const matcher = createRegEx(input)
   const modals = fileObjects
      .filter(({name}) => name.match(matcher) !== null)
-     .map(buildCodeModal).join('\n');
-  const html = `<div style="overflow: hidden;">${modals}</div>`
+     .map(buildCodeModal)
+  const results = `<div style="overflow: hidden;">${modals.join('\n')}</div>`
+  const metaPanel = `<div class="text-xl font-mono pb-2">Found ${modals.length} hits</div>`
+  const html = `<div>${metaPanel}${results}</div>`
   const page = injectCss(html)
   // console.log(page);
   return page
