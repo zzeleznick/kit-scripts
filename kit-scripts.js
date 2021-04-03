@@ -11,7 +11,8 @@ const scriptsRef = scriptsDB.get("scripts");
 const owner = `eggheadio`
 const repo = `scriptkit.app`
 const branch = `main`
-const treepath = `public/scripts/johnlindquist`
+const author = `johnlindquist`
+const treepath = `public/scripts/${author}`
 const ref = `${branch}:${treepath}`
 
 const githubURL = "https://api.github.com/graphql";
@@ -86,6 +87,7 @@ const fetchTreeObjects = async () => {
 
 const fetchScript = async (name) => {
   const scriptUrl = `https://raw.githubusercontent.com/${owner}/${repo}/${branch}/${treepath}/${name}`;
+  // NOTE: https://scriptkit.app/scripts/${author}/${name} should also work by design
   const response = await get(scriptUrl);
   return response.data;
 }
@@ -161,11 +163,18 @@ const smallTextify = (field) => {
   return field ? `<div class="text-xs">${field}</div>` : ''
 }
 
+// NOTE: couldn't trigger the app.on('open-url') and would instead get the app in a bad state ...
+// const buildUrl = (name) => `kit://${name.split('.')[0]}?url=https://${repo}/scripts/${author}/${name}`
+
+const buildUrl = (name) => `https://${repo}/scripts/${author}/${name.split('.')[0]}`
+
 const buildCodeModal = (payload) => {
   let {name, text: code, description, author, twitter} = payload;
   const block = buildCodeBlock(code)
-  name = name ? `<div class="text-lg text-bold">${name.split('.')[0]}</div>` : ''
-  const meta = [name].concat([description, author, twitter].map(smallTextify)).join('\n');
+  const download = `<a class="group font-mono font-bold inline-flex" href="${buildUrl(name)}">Install</a>`
+  name = name ? `<div class="text-lg font-mono font-bold">${name.split('.')[0]}</div>` : ''
+  const row = `<div class="flex w-full justify-between">${name}${download}</div>`
+  const meta = [row].concat([description, author, twitter].map(smallTextify)).join('\n');
   // ideally add some fancier styles like 'box-border border-4 bg-white' here
   const metaStyle = "border-bottom: 2px solid rgba(0, 0, 0, .025)"
   const header = `<div class="h-full p-3" style="${metaStyle}">${meta}</div>`
@@ -195,7 +204,7 @@ const createRegEx = (input = '') => {
 
 const fetchAllFileObjects = async () => {
   const entries = await fetchTreeObjects();
-  const limit = 20; // fake limit
+  const limit = 50; // fake limit
   const promises = entries.slice(0,limit).map(({name, oid}) => loadScriptBundle(name, oid));
   return await Promise.all(promises);
 }
@@ -206,10 +215,10 @@ const buildPage = (fileObjects) => (input) => {
      .filter(({name}) => name.match(matcher) !== null)
      .map(buildCodeModal)
   const results = `<div style="overflow: hidden;">${modals.join('\n')}</div>`
-  const metaPanel = `<div class="text-xl font-mono pb-2">Found ${modals.length} hits</div>`
+  const metaPanel = `<div class="text-xl font-semibold font-mono pb-2">Found ${modals.length} hits</div>`
   const html = `<div>${metaPanel}${results}</div>`
   const page = injectCss(html)
-  // console.log(page);
+  console.log(page);
   return page
 }
 
