@@ -156,7 +156,8 @@ const injectCustomClass = async () => {
 
 const buildCodeBlock = (code) => {
   const html = Prism.highlight(code, Prism.languages.javascript, 'javascript');
-  return `<div class="h-full p-1 pt-2 pb-2 text-xs w-screen"><pre><code>${html}</code></pre></div>` 
+  const style = "border-top: 2px solid rgba(0, 0, 0, .025); overflow-x: scroll;"
+  return `<div class="h-full p-1 pt-2 pb-2 text-xs w-screen" style="${style}"><pre><code>${html}</code></pre></div>`
 }
 
 const smallTextify = (field) => {
@@ -175,9 +176,7 @@ const buildCodeModal = (payload) => {
   name = name ? `<div class="text-lg font-mono font-bold">${name.split('.')[0]}</div>` : ''
   const row = `<div class="flex w-full justify-between">${name}${download}</div>`
   const meta = [row].concat([description, author, twitter].map(smallTextify)).join('\n');
-  // ideally add some fancier styles like 'box-border border-4 bg-white' here
-  const metaStyle = "border-bottom: 2px solid rgba(0, 0, 0, .025)"
-  const header = `<div class="h-full p-3" style="${metaStyle}">${meta}</div>`
+  const header = `<div class="h-full p-3">${meta}</div>`
   const style = "border: 2px solid rgba(0, 0, 0, .05); overflow: scroll;"
   return `<div class="h-full w-full p-1 pb-2 mb-2 " style="${style}">${header}${block}</div>`
 }
@@ -189,7 +188,6 @@ const injectCss = (html) => {
   const style = `<style type="text/css">${css}</style>`
   return `${style}${html}`
 }
-
 
 const createRegEx = (input = '') => {
   input = input.trim().toLowerCase()
@@ -231,7 +229,3 @@ const buildScriptRxPanel = async () => {
 }
 
 await buildScriptRxPanel()
-
-// const page = await(buildPage);
-
-// await arg("View page:", page)
