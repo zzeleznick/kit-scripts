@@ -48,14 +48,15 @@ query {
     object(expression: "${ref}") {
       ... on Tree {
         entries {
-          name
+          name,
+          oid,
         }
       }
     }
   }
 }`
 
-const fetchTreeFiles = async () => {
+const fetchTreeObjects = async () => {
   let response;
   try {
     response = await post(githubURL,
@@ -66,11 +67,11 @@ const fetchTreeFiles = async () => {
     );
   }
   catch (err) {
-    console.warn("fetchTreeFiles failed:", err);
+    console.warn("fetchTreeObjects failed:", err);
     return
   }
   const graphqlResponse = response.data;
-  console.log(repoTreeQuery, graphqlResponse);
+  // console.log(repoTreeQuery, graphqlResponse);
   const {
     data: {
       repository: {
@@ -80,16 +81,13 @@ const fetchTreeFiles = async () => {
       }
     }
   } = graphqlResponse;
-  const names = entries.map(({name}) => name);
-  console.log("fetchTreeFiles:", names)
-  return names
+  return entries
 }
 
 const fetchScript = async (name) => {
   const scriptUrl = `https://raw.githubusercontent.com/${owner}/${repo}/${branch}/${treepath}/${name}`;
   const response = await get(scriptUrl);
-  const raw = response.data;
-  return raw
+  return response.data;
 }
 
 // adapted from kit/cli/info.js
@@ -113,16 +111,31 @@ const extractMetadata = (text) => {
   }, {});
 }
 
-const loadScript = async (name) => {
-  const cached = scriptsRef.find({ name }).value();
+
+const loadScriptBundle = async (name, oid) => {
+  const entry = scriptsRef.find({ name });
+  const cached = entry.value();
   if (cached) {
-    console.log(`Using cached for: ${name}`)
-    return cached
+    console.log(`Found cached for: ${name}`);
+    const localOid = cached.oid;
+    if (localOid === oid) {
+      console.log(`No remote changes for: ${name}`);
+      return cached
+    }
+    console.log(`Git object mismatch for: ${name} – local:${localOid} != remote:${oid}`);
   }
+  console.log(`Fetching remote ${name}`);
   const text = await fetchScript(name);
-  const metadata = {...extractMetadata(text), name}
-  const payload = { text, ...metadata}
-  scriptsRef.insert(payload).write();
+  const metadata = extractMetadata(text);
+  console.log(`Fetched remote ${name} with metadata: ${JSON.stringify(metadata)}`);
+  const payload = { ...metadata, text, name, oid}
+  // TODO: should probably remove old files
+  // TODO: should clean up this function – doing too much
+  if (cached) {
+    entry.assign(payload).write()
+  } else {
+    scriptsRef.insert(payload).write();
+  }
   return payload
 }
 
@@ -141,7 +154,7 @@ const injectCustomClass = async () => {
 
 const buildCodeBlock = (code) => {
   const html = Prism.highlight(code, Prism.languages.javascript, 'javascript');
-  return `<div class="h-full p-1 text-xs w-screen"><pre><code>${html}</code></pre></div>` 
+  return `<div class="h-full p-1 pt-2 pb-2 text-xs w-screen"><pre><code>${html}</code></pre></div>` 
 }
 
 const smallTextify = (field) => {
@@ -154,9 +167,10 @@ const buildCodeModal = (payload) => {
   name = name ? `<div class="text-lg text-bold">${name.split('.')[0]}</div>` : ''
   const meta = [name].concat([description, author, twitter].map(smallTextify)).join('\n');
   // ideally add some fancier styles like 'box-border border-4 bg-white' here
-  const header = `<div class="h-full p-3">${meta}</div>`
-  const style = "border: solid; border-width:2px; border-color:rgba(0, 0, 0, .025); overflow: scroll;"
-  return `<div class="h-full w-full mb-2 p-1 pb-2" style="${style}">${header}${block}</div>`
+  const metaStyle = "border-bottom: 2px solid rgba(0, 0, 0, .025)"
+  const header = `<div class="h-full p-3" style="${metaStyle}">${meta}</div>`
+  const style = "border: 2px solid rgba(0, 0, 0, .05); overflow: scroll;"
+  return `<div class="h-full w-full p-1 pb-2 mb-2 " style="${style}">${header}${block}</div>`
 }
 
 const injectCss = (html) => {
@@ -167,19 +181,46 @@ const injectCss = (html) => {
   return `${style}${html}`
 }
 
-const buildPage = async () => {
-  const filenames = await fetchTreeFiles();
-  const promises = filenames.slice(0,3).map(name => loadScript(name));
-  const payloads = await Promise.all(promises);
-  // const payload = await loadScript('anime-search.js');
-  // const modals = [buildCodeModal(payload), buildCodeModal(payload)].join('\n');
-  const modals = payloads.map(buildCodeModal).join('\n');
+
+const createRegEx = (input = '') => {
+  input = input.trim().toLowerCase()
+  let matcher = input
+  try {
+    matcher = new RegExp(input)
+  } catch (err) {
+    console.warn("Invalid expression", input)
+  }
+  return matcher
+}
+
+const fetchAllFileObjects = async () => {
+  const entries = await fetchTreeObjects();
+  const limit = 20; // fake limit
+  const promises = entries.slice(0,limit).map(({name, oid}) => loadScriptBundle(name, oid));
+  return await Promise.all(promises);
+}
+
+const buildPage = (fileObjects) => (input) => {
+  const matcher = createRegEx(input)
+  const modals = fileObjects
+     .filter(({name}) => name.match(matcher) !== null)
+     .map(buildCodeModal).join('\n');
   const html = `<div style="overflow: hidden;">${modals}</div>`
   const page = injectCss(html)
-  console.log(page);
+  // console.log(page);
   return page
 }
 
-const page = await(buildPage);
+const buildScriptRxPanel = async () => {
+  const objects = await fetchAllFileObjects();
+  await arg({
+    message: "Search for scripts:",
+    input: "",
+  }, buildPage(objects));
+}
 
-await arg("View page:", page)
+await buildScriptRxPanel()
+
+// const page = await(buildPage);
+
+// await arg("View page:", page)
