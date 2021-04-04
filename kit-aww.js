@@ -88,6 +88,10 @@ const injectCss = (html) => {
     .grid-cols-2 {grid-template-columns: repeat(2, minmax(0, 1fr))}
     .grid-cols-3 {grid-template-columns: repeat(3, minmax(0, 1fr))}
     .grid div {place-items: center}
+    .grid.grid-cols-3 {column-count: 3; column-gap: 0px;}
+    .grid div:nth-child(1n) {background: aliceblue}
+    .grid div:nth-child(2n) {background: floralwhite}
+    .grid div:nth-child(3n) {background: ivory}
   `
   const style = `<style type="text/css">${css}</style>`
   return `${style}${html}`
@@ -105,7 +109,7 @@ const buildPage = (imageObjects) => (input) => {
       .map(v => `<div class="spanner">${v.join('\n')}</div>`)
   // can't figure out how to get column heights to match
   const html = `<div class="grid grid-cols-3">${modals.join('\n')}</div>`
-  const page = 1 ? html : injectCss(html)
+  const page = 0 ? html : injectCss(html)
   console.log(page);
   return page
 }
