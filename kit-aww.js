@@ -64,36 +64,51 @@ const fetchImages = async () => {
 const buildImageModal = (payload) => {
   let {views, score, link, id, title} = payload;
   const img = `<img src="${link}">`
-  // lcass="h-full w-full p-1"
   return `<div>${img}</div>`
 }
+
+const groupArray = (data, n) => {
+  let groups = [];
+  for (let i = 0, j = 0; i < data.length; i++) {
+    if (i >= n && i % n === 0) {
+      j++;
+    }
+    groups[j] = groups[j] || [];
+    groups[j].push(data[i])
+  }
+  return groups;
+}
+
+
 
 const injectCss = (html) => {
   // our tailwind build seems to be missing grid css
   const css = `
     .grid {display:grid}
     .grid-cols-2 {grid-template-columns: repeat(2, minmax(0, 1fr))}
-    .grid-center {place-items: center}
+    .grid-cols-3 {grid-template-columns: repeat(3, minmax(0, 1fr))}
+    .grid div {place-items: center}
   `
   const style = `<style type="text/css">${css}</style>`
   return `${style}${html}`
 }
 
 const buildPage = (imageObjects) => (input) => {
-  const modals = imageObjects.slice(0,9).map(buildImageModal)
+  let modals = imageObjects
+      .sort((a, b) => { // should already be sorted
+        let [x,y] = [a.score, b.score]
+        return x > y ? -1 : x < y ? 1 : 0
+      })
+      .slice(0,9)
+      .map(buildImageModal)
+  modals = groupArray(modals, 3)
+      .map(v => `<div class="spanner">${v.join('\n')}</div>`)
   // can't figure out how to get column heights to match
-  // grid grid-cols-2 grid-center
-  const html = `<div class="">${modals.join('\n')}</div>`
-  const page = injectCss(html)
+  const html = `<div class="grid grid-cols-3">${modals.join('\n')}</div>`
+  const page = 1 ? html : injectCss(html)
   console.log(page);
   return page
 }
-
-// .filter(({name}) => name.match(matcher) !== null)
-
-// .map(({views, score, link, id, title}) => { 
-//   return 
-// })
 
 const buildImagesRxPanel = async () => {
   const images = await fetchImages();
