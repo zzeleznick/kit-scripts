@@ -6,9 +6,10 @@
 
 const { bestFitDecreasing } = await npm('bin-packer');
 
-const LIMIT = 200;
+const LIMIT = 1000;
 
 // NOTE: options to use "-ctime -90d" / "-atime -90d"
+// can read with stat -f "%a" / stat -f "%c"
 
 const DIR = "~/Desktop"
 const TYPE = "png"
@@ -54,24 +55,23 @@ const testAsync = async () => {
 // const buildCommand = (file) => `mdls -name kMDItemPixelHeight -name kMDItemPixelWidth '${file}'`
 // | awk -F"=" '{print $2}' | tr '\n' ' '`
 
-const buildCommand = (file) => `sips -g pixelHeight -g pixelWidth '${file}'`
-
 const extractMetadata = async (file) => {
+  const cmd = `sips -g pixelHeight -g pixelWidth '${file}' && stat -f "time: %c" '${file}'`
   let stdout
   try {
-    stdout = await execAsync(buildCommand(file), {silent: true})
+    stdout = await execAsync(cmd, {silent: true})
   } catch(err) {
     console.warn(`File: "${file}" failed with error: ${err}`);
   }
-  const [height, width] = stdout.trim().split("\n")
+  const [height, width, created] = stdout.trim().split("\n")
           .slice(1,) // toss first line of sips
           .map(v => Number(v.split(":")[1].trim()))
-          .slice(0, 2)
-  // const [height, width] = stdout.trim().split(/ +/g)
+          .slice(0, 3)
   return {
     file,
     height,
     width,
+    created: new Date(created * 1000),
   }
 }
 
@@ -229,7 +229,10 @@ const buildPage = (imageObjects) => {
 
   const modals = bins
     .map(a => `<div class="spanner">
-      ${a.map(buildImageModal).join('\n')}
+      ${a.sort((a, b) => { // sort desc along the column
+        let [x,y] = [a.created, b.created]
+        return x > y ? -1 : x < y ? 1 : 0
+      }).map(buildImageModal).join('\n')}
       </div>`)
     .join('\n')
 
