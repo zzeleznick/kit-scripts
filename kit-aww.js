@@ -92,7 +92,9 @@ const buildArray = (n) => {
   return a
 }
 
+const truncate = (n, d) => Number((n).toFixed(d))
 const computeAspectRatio = ({width, height}) => Math.floor(10 * height / width);
+const computeAspectRatioFloat = ({width, height}) => truncate(height/width, 4);
 
 const groupImagesNaive = (images, columns) => {
   let groups = [];
@@ -155,6 +157,9 @@ const multifit = (data, k) => {
 
 const groupImagesMultifit = (images, columns) => {
   images = images.map(v => { return {...v, size: computeAspectRatio(v)} })
+  // const maxSize = getMaxBin([images])
+  // console.log('maxSize:', maxSize);
+  // images = images.map(v => { return {...v, size: truncate(v["size"]) / maxSize, 0)} })
   const cap = multifit(images, columns)
   const { bins } = bestFitDecreasing(images, sizeOf, cap)
   return bins
@@ -206,14 +211,14 @@ const groupImages = (images, columns, method) => {
 
 const buildPage = (imageObjects) => {
   const sizeOptions = buildArray(10).map(v => (v - 1) * 3 + 9);
-  const maxSize = sizeOptions[Math.floor(Math.random() * sizeOptions.length)]
-  console.log('maxSize:', maxSize)
+  const maxLength = sizeOptions[Math.floor(Math.random() * sizeOptions.length)]
+  console.log('maxLength:', maxLength)
   const subset = imageObjects
       .sort((a, b) => { // should already be sorted
         let [x,y] = [a.score, b.score]
         return x > y ? -1 : x < y ? 1 : 0
       })
-      .slice(0, maxSize)
+      .slice(0, maxLength)
 
   const bins = groupImages(subset, 3, Method.BEST_FIT)
   const modals = bins
