@@ -67,6 +67,7 @@ const fetchImages = async () => {
 
 const buildImageModal = (payload) => {
   let {views, score, link, id, title} = payload;
+  // maybe consider class="rounded-lg"
   const img = `<img src="${link}">`
   return `<div>${img}</div>`
 }
@@ -162,17 +163,22 @@ const groupImagesMultifit = (images, columns) => {
 const injectCss = (html) => {
   // our tailwind build seems to be missing grid css
   // we add some custom styles as well
+  const backgrounds = 0 ? `
+    .grid div:nth-child(1n) {background: aliceblue}
+    .grid div:nth-child(2n) {background: floralwhite}
+    .grid div:nth-child(3n) {background: ivory}
+  ` : ''
   const css = `
     .grid {display:grid}
     .grid-cols-2 {grid-template-columns: repeat(2, minmax(0, 1fr))}
     .grid-cols-3 {grid-template-columns: repeat(3, minmax(0, 1fr))}
-    .grid div {place-items: center}
+    .grid div {place-items: center; padding: clamp(1px, 4%, 25px);}
     /* hacky masonry layout */
     .grid.grid-cols-3 {column-count: 3; column-gap: 0px;}
     /* custom backgrounds for flair */
-    .grid div:nth-child(1n) {background: aliceblue}
-    .grid div:nth-child(2n) {background: floralwhite}
-    .grid div:nth-child(3n) {background: ivory}
+    ${backgrounds}
+    /* prevent jagged space */
+    .grid div.spanner {display: flex; flex-direction: column; justify-content: space-between;}
     /* hide input bar */
     input {display: none}
     /* hacky hide overflow */
