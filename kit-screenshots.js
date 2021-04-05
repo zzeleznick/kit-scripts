@@ -34,9 +34,11 @@ const execAsync = (cmd, options = {}) => {
   });
 }
 
-const buildCommand = (file) => `mdls -name kMDItemPixelHeight -name kMDItemPixelWidth '${file}'`
-
+// mdls is about 2x slower
+// const buildCommand = (file) => `mdls -name kMDItemPixelHeight -name kMDItemPixelWidth '${file}'`
 // | awk -F"=" '{print $2}' | tr '\n' ' '`
+
+const buildCommand = (file) => `sips -g pixelHeight -g pixelWidth '${file}'`
 
 const extractMetadata = async (file) => {
   let stdout
@@ -45,7 +47,10 @@ const extractMetadata = async (file) => {
   } catch(err) {
     console.warn(`File: "${file}" failed with error: ${err}`);
   }
-  const [height, width] = stdout.trim().split("\n").map(v => Number(v.split("=")[1].trim())).slice(0, 2)
+  const [height, width] = stdout.trim().split("\n")
+          .slice(1,)
+          .map(v => Number(v.split(":")[1].trim()))
+          .slice(0, 2)
   // const [height, width] = stdout.trim().split(/ +/g)
   return {
     file,
