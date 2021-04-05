@@ -8,19 +8,25 @@ const { bestFitDecreasing } = await npm('bin-packer');
 
 const LIMIT = 200;
 
+// NOTE: options to use "-ctime -90d" / "-atime -90d"
+
+const DIR = "~/Desktop"
+const TYPE = "png"
+const MAX_DEPTH = "1"
+
+const FINDER = {
+  FIND: "find",
+  MDFIND: "mdfind",
+}
+
+const mdfindCommand = `mdfind "kMDItemFSName = '*.${TYPE}'" -onlyin ${DIR}`
+
+const findCommand = `find ${DIR} -name "*.${TYPE}" -maxdepth ${MAX_DEPTH}`
+
+const findSortedCommand = `${findCommand} -print0 | xargs -0 ls -at`
+
 const getImages = () => {
-  // const cmd = `find ~/Downloads -name "*.png" -maxdepth 1 2> /dev/null`
-  // const cmd = `find ~/Downloads -name "*.jpg" -maxdepth 1 2> /dev/null`
-  // const cmd = `mdfind "kMDItemFSName = '*.png'" -onlyin ~/Downloads 2> /dev/null`
-  // const cmd = `mdfind "kMDItemFSName = '*.jpg'" -onlyin ~/Downloads 2> /dev/null`
-  // also could use "-atime -30d" for access / "-ctime -30d" for created
-  // e.g.
-  // $ time find ~/Desktop -name "*.png" -maxdepth 1 -atime -90d | wc -l                                                   10:49 PM | 100
-  //  1171
-  // $ time find ~/Desktop -name "*.png" -maxdepth 1 -ctime -90d | wc -l                                                   10:49 PM | 100
-  //  473
-  const cmd = `mdfind "kMDItemFSName = '*.png'" -onlyin ~/Desktop 2> /dev/null`
-  return exec(cmd, { silent: true }).toString().split("\n").filter(v => v)
+  return exec(findSortedCommand, { silent: true }).toString().split("\n").filter(v => v)
 }
 
 // See https://github.com/shelljs/shelljs#execcommand--options--callback
@@ -32,6 +38,16 @@ const execAsync = (cmd, options = {}) => {
       return resolve(stdout);
     });
   });
+}
+
+const testAsync = async () => {
+  const commands = [
+    'echo "id:2 $(date)" && sleep 2 && echo "id:2 $(date) - did sleep for 2"',
+    'echo "id:1 $(date)" && sleep 1 && echo "id:1 $(date) - did sleep for 1"',
+    'echo "id:3 $(date)" && sleep 3 && echo "id:3 $(date) - did sleep for 3"',
+  ]
+
+  await Promise.all( commands.map(v => execAsync(v)) )
 }
 
 // mdls is about 2x slower
@@ -48,7 +64,7 @@ const extractMetadata = async (file) => {
     console.warn(`File: "${file}" failed with error: ${err}`);
   }
   const [height, width] = stdout.trim().split("\n")
-          .slice(1,)
+          .slice(1,) // toss first line of sips
           .map(v => Number(v.split(":")[1].trim()))
           .slice(0, 2)
   // const [height, width] = stdout.trim().split(/ +/g)
@@ -107,7 +123,9 @@ const getImagesAndMetadataBatched = async () => {
 }
 
 const getImagesAndMetadata = async () => {
-  const files = getImages().slice(0, LIMIT)
+  let files = getImages()
+  console.log(`Found ${files.length} files, limiting to ${LIMIT}`);
+  files = files.slice(0, LIMIT)
   let results;
   console.log('getImagesAndMetadata: Pool start')
   try {
@@ -186,10 +204,12 @@ const injectCss = (html) => {
     .grid-cols-2 {grid-template-columns: repeat(2, minmax(0, 1fr))}
     .grid-cols-3 {grid-template-columns: repeat(3, minmax(0, 1fr))}
     .grid-cols-4 {grid-template-columns: repeat(4, minmax(0, 1fr))}
+    .grid-cols-5 {grid-template-columns: repeat(5, minmax(0, 1fr))}
     .grid div {place-items: center; padding: clamp(1px, 4%, 25px);}
     /* hacky masonry layout */
     .grid.grid-cols-3 {column-count: 3; column-gap: 0px;}
     .grid.grid-cols-4 {column-count: 4; column-gap: 0px;}
+    .grid.grid-cols-5 {column-count: 5; column-gap: 0px;}
     /* custom backgrounds for flair */
     /* prevent jagged space */
     .grid div.spanner {display: flex; flex-direction: column; justify-content: space-between;}
@@ -204,7 +224,8 @@ const buildPage = (imageObjects) => {
       .filter(v => computeAspectRatio(v) <= 200)
       .slice(0, maxLength)
 
-  const bins = groupImagesMultifit(subset, 4)
+  const columns = subset.length > 32 ? (subset.length > 64 ? 5 : 4) : 3
+  const bins = groupImagesMultifit(subset, columns)
 
   const modals = bins
     .map(a => `<div class="spanner">
@@ -212,9 +233,10 @@ const buildPage = (imageObjects) => {
       </div>`)
     .join('\n')
 
-  const html = `<div class="grid grid-cols-4 pt-1 m-1">${modals}</div>`
+  const html = `<div class="grid grid-cols-${columns} pt-1 m-1">${modals}</div>`
   const page = 0 ? html : injectCss(html)
-  console.log(page);
+  // console.log(page);
+  console.log('buildPage: Done')
   return page
 }
 
@@ -228,26 +250,4 @@ const buildImagesPanel = async () => {
   }, buildPage(images));
 }
 
-buildImagesPanel()
-
-const main = async () => {
-  await getImagesAndMetadata()
-}
-
-// mdls -name kMDItemPixelHeight -name ~/Downloads/download.png
-// | awk -F"=" '{print $2}' | tr '\n' ' '
-
-const testAsync = async () => {
-  const commands = [
-    'echo "id:2 $(date)" && sleep 2 && echo "id:2 $(date) - did sleep for 2"',
-    'echo "id:1 $(date)" && sleep 1 && echo "id:1 $(date) - did sleep for 1"',
-    'echo "id:3 $(date)" && sleep 3 && echo "id:3 $(date) - did sleep for 3"',
-  ]
-
-  await Promise.all( commands.map(v => execAsync(v)) )
-}
-
-// main()
-
-
-
+await buildImagesPanel()
