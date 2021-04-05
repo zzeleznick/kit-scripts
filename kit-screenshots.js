@@ -6,7 +6,8 @@
 
 const { bestFitDecreasing } = await npm('bin-packer');
 
-const LIMIT = 1000;
+const LIMIT = 100;
+const NAIVE = true;
 
 // NOTE: options to use "-ctime -90d" / "-atime -90d"
 // can read with stat -f "%a" / stat -f "%c"
@@ -141,7 +142,7 @@ const getImagesAndMetadata = async () => {
 const buildImageModal = (payload) => {
   let {file} = payload;
   const img = `<img src="${file}">`
-  return `<div>${img}</div>`
+  return `<div class="imgContainer">${img}</div>`
 }
 
 const computeAspectRatio = ({width, height}) => Math.floor(100 * height / width);
@@ -212,10 +213,27 @@ const injectCss = (html) => {
     .grid.grid-cols-5 {column-count: 5; column-gap: 0px;}
     /* custom backgrounds for flair */
     /* prevent jagged space */
+    .imgContainer {display: flex;}
     .grid div.spanner {display: flex; flex-direction: column; justify-content: space-between;}
   `
   const style = `<style type="text/css">${css}</style>`
   return `${style}${html}`
+}
+
+const buildNaivePage = (imageObjects) => {
+  const maxLength = LIMIT; // fake limit
+  const subset = imageObjects
+      .slice(0, maxLength)
+      .map(file => { return { file } })
+
+  const columns = subset.length > 32 ? (subset.length > 64 ? 5 : 4) : 3
+  const modals = subset.map(buildImageModal).join('\n')
+
+  const html = `<div class="grid grid-cols-${columns} pt-1 m-1">${modals}</div>`
+  const page = 0 ? html : injectCss(html)
+  // console.log(page);
+  console.log('buildPage: Done')
+  return page
 }
 
 const buildPage = (imageObjects) => {
@@ -245,12 +263,13 @@ const buildPage = (imageObjects) => {
 
 const buildImagesPanel = async () => {
   console.log('getImagesAndMetadata')
-  const images = await getImagesAndMetadata();
+  const naive = false
+  const images = NAIVE ? getImages() : await getImagesAndMetadata();
   console.log(`Found ${images.length} images`);
   await arg({
     // message: "Search for images:",
     input: " ",
-  }, buildPage(images));
+  }, NAIVE ? buildNaivePage(images) : buildPage(images));
 }
 
 await buildImagesPanel()
