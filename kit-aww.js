@@ -69,7 +69,7 @@ const buildImageModal = (payload) => {
   let {views, score, link, id, title} = payload;
   // maybe consider class="rounded-lg"
   const img = `<img src="${link}">`
-  return `<div>${img}</div>`
+  return `<div><a href="${link}">${img}</a></div>`
 }
 
 const groupArray = (data, n) => {
@@ -213,6 +213,7 @@ const buildPage = (imageObjects) => {
         let [x,y] = [a.score, b.score]
         return x > y ? -1 : x < y ? 1 : 0
       })
+      .filter(v => computeAspectRatio(v) <= 200)
       .slice(0, maxLength)
 
   const bins = groupImages(subset, 3, Method.BEST_FIT)
