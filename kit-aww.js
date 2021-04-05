@@ -92,7 +92,7 @@ const buildArray = (n) => {
   return a
 }
 
-const computeAspectRatio = ({width, height}) => Math.floor(10 * height / width);
+const computeAspectRatio = ({width, height}) => Math.floor(100 * height / width);
 
 const groupImagesNaive = (images, columns) => {
   let groups = [];
@@ -216,8 +216,14 @@ const buildPage = (imageObjects) => {
       .slice(0, maxLength)
 
   const bins = groupImages(subset, 3, Method.BEST_FIT)
+
   const modals = bins
-    .map(a => `<div class="spanner">${a.map(buildImageModal).join('\n')}</div>`)
+    .map(a => `<div class="spanner">
+      ${a.sort((a, b) => { // sort along the column
+        let [x,y] = [a.score, b.score]
+        return x > y ? -1 : x < y ? 1 : 0
+       }).map(buildImageModal).join('\n')}
+      </div>`)
     .join('\n')
 
   const html = `<div class="grid grid-cols-3 pt-1 m-1">${modals}</div>`
@@ -227,6 +233,7 @@ const buildPage = (imageObjects) => {
 }
 
 const buildImagesPanel = async () => {
+  console.log('fetchImages')
   const images = await fetchImages();
   console.log(`Found ${images.length} images`);
   await arg({
