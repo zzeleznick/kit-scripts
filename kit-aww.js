@@ -92,9 +92,7 @@ const buildArray = (n) => {
   return a
 }
 
-const truncate = (n, d) => Number((n).toFixed(d))
 const computeAspectRatio = ({width, height}) => Math.floor(10 * height / width);
-const computeAspectRatioFloat = ({width, height}) => truncate(height/width, 4);
 
 const groupImagesNaive = (images, columns) => {
   let groups = [];
@@ -157,9 +155,6 @@ const multifit = (data, k) => {
 
 const groupImagesMultifit = (images, columns) => {
   images = images.map(v => { return {...v, size: computeAspectRatio(v)} })
-  // const maxSize = getMaxBin([images])
-  // console.log('maxSize:', maxSize);
-  // images = images.map(v => { return {...v, size: truncate(v["size"]) / maxSize, 0)} })
   const cap = multifit(images, columns)
   const { bins } = bestFitDecreasing(images, sizeOf, cap)
   return bins
